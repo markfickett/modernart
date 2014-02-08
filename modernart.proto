@@ -31,9 +31,7 @@ message PlayerHoldings {
 }
 
 message Board {
-  required uint32 bank_money = 1;
-
-  repeated Card cards_on_auction = 2;
+  repeated Card cards_on_auction = 1;
 
   message ArtistOutcome {
     required Artist.Id artist = 1;
@@ -42,9 +40,9 @@ message Board {
   message RoundOutcome {
     repeated ArtistOutcome artist_outcomes = 1;
   }
-  repeated RoundOutcome round_outcomes = 3;
+  repeated RoundOutcome round_outcomes = 2;
 
-  repeated PlayerHoldings player_holdings = 4;
+  repeated PlayerHoldings player_holdings = 3;
 
-  repeated Card deck = 5;
+  repeated Card deck = 4;
 }

@@ -1,3 +1,11 @@
+class PlayerWrapper(object):
+
+  def __init__(self, player_obj, size):
+    self._wrapped = player_obj
+    self.name = player_obj.name
+    self.size = size
+
+
 class Player(object):
   _inst_count = 0
 

@@ -8,13 +8,16 @@ import printing
 MIN_PLAYERS = 3
 MAX_PLAYERS = 5
 
-_INITIAL_CARDS = 13
+_NUM_ROUNDS = 4
 
 
 class GameMaster(object):
 
   def __init__(self, player_objs):
-    self._players = player_objs
+    youngest_index = player_objs.index(
+        min(player_objs, key=lambda p: p.size))
+    self._players = player_objs[youngest_index:] + player_objs[:youngest_index]
+    self._next_seller_index = 0
 
   def Play(self):
     self._board = modernart_pb2.Board(
@@ -22,10 +25,41 @@ class GameMaster(object):
     for player in self._players:
       self._board.player_holdings.add(
           name=player.name,
-          money=100,
-          hand=_TakeCards(self._board.deck, _INITIAL_CARDS))
+          money=100)
     logging.debug('Starting board: %s', self._board)
-    return self._players[0]
+
+    for round_index in range(_NUM_ROUNDS):
+      self._PlayRound(round_index)
+
+    return self._PickWinner()
+
+
+  def _PlayRound(self, round_index):
+    for holding in self._board.player_holdings:
+      holding.hand.extend(_TakeCards(
+          self._board.deck,
+          _GetNewCardCount(round_index, len(self._players))))
+
+
+  def _PickWinner(self):
+    winner_info = None
+    for holding in self._board.player_holdings:
+      if winner_info is None or holding.money > winner_info.money:
+        winner_info = holding
+    for player in self._players:
+      if winner_info.name == player.name:
+        return player
+    raise RuntimeError(
+        'Holdings name %r corresponds to no Player.', winner_info.name)
+
+
+def _GetNewCardCount(round_index, num_players):
+  player_count_index = max(0, min(2, num_players - 3))
+  clamped_round_index = max(0, min(3, round_index))
+  return (
+    (10, 6, 6, 0),
+    (9, 4, 4, 0),
+    (8, 3, 3, 0))[player_count_index][clamped_round_index]
 
 
 def _TakeCards(source_cards, num):

@@ -1,7 +1,9 @@
+import base
 import importlib
 import logging
 import os
 import random
+
 
 def LoadPlayers(min_players, max_players):
   module_files = os.listdir(os.path.dirname(__file__))
@@ -30,7 +32,9 @@ def _InstantiatePlayers(modules, min_players, max_players):
     if not ok_modules:
       raise RuntimeError('Not enough players instantiable.')
     try:
-      player = ok_modules[i].Player()
+      raw_player = ok_modules[i].Player()
+      player = base.PlayerWrapper(
+          raw_player, os.stat(ok_modules[i].__file__).st_size)
       if player.name in used_names:
         raise RuntimeError('Name %r already used.', player.name)
       used_names.add(player.name)
