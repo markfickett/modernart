@@ -1,7 +1,7 @@
 message Artist {
   enum Id {
-    YOKO = 1;
-    LITE_METAL = 2;
+    LITE_METAL = 1;
+    YOKO = 2;
     KARL_GITTER = 3;
     CHRISTIN_P = 4;
     KRYPTO = 5;
@@ -45,4 +45,6 @@ message Board {
   repeated RoundOutcome round_outcomes = 3;
 
   repeated PlayerHoldings player_holdings = 4;
+
+  repeated Card deck = 5;
 }
