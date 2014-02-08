@@ -1,5 +1,6 @@
 import logging
 import modernart_pb2
+import players
 
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(filename)s:%(lineno)s: %(message)s',
@@ -7,6 +8,8 @@ logging.basicConfig(
 
 
 if __name__ == '__main__':
-  logging.info('Modern Art')
-
-# https://docs.google.com/document/d/16GLui4uT4IijqQOH5ZBtPu2az3gX72HdD3pAE-Jgjng/edit
+  logging.info('Welcome To Modern Art')
+  player_objs = players.LoadPlayers()
+  logging.info(
+      'The players are: %s',
+      ', '.join(player.name for player in player_objs))
