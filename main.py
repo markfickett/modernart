@@ -5,7 +5,7 @@ import players
 
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(filename)s:%(lineno)s: %(message)s',
-    level=logging.INFO)
+    level=logging.DEBUG)
 
 
 if __name__ == '__main__':
