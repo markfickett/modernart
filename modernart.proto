@@ -1,13 +1,48 @@
 message Artist {
-	enum Id {
-		YOKO = 1;
-		LITE_METAL = 2;
-		KARL_GITTER = 3;
-		CHRISTIN_P = 4;
-		KRYPTO = 5;
-	}
+  enum Id {
+    YOKO = 1;
+    LITE_METAL = 2;
+    KARL_GITTER = 3;
+    CHRISTIN_P = 4;
+    KRYPTO = 5;
+  }
+}
+
+message AuctionType {
+  enum Id {
+    SEALED = 1;
+    FIXED = 2;
+    ONCE_AROUND = 3;
+    OPEN = 4;
+    DOUBLE = 5;
+  }
+}
+
+message Card {
+  required Artist.Id artist = 1;
+  required AuctionType.Id auction_type = 2;
+}
+
+message PlayerHoldings {
+  required string name = 1;
+  required uint32 money = 2;
+  repeated Card hand = 3;
+  repeated Card purchases = 4;
 }
 
 message Board {
-	required uint32 bank_money = 1;
+  required uint32 bank_money = 1;
+
+  repeated Card cards_on_auction = 2;
+
+  message ArtistOutcome {
+    required Artist.Id artist = 1;
+    required uint32 value = 2;
+  }
+  message RoundOutcome {
+    repeated ArtistOutcome artist_outcomes = 1;
+  }
+  repeated RoundOutcome round_outcomes = 3;
+
+  repeated PlayerHoldings player_holdings = 4;
 }
