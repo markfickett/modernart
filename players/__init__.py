@@ -3,7 +3,7 @@ import logging
 import os
 import random
 
-def LoadPlayers():
+def LoadPlayers(min_players, max_players):
   module_files = os.listdir(os.path.dirname(__file__))
   module_names = set(
       os.path.splitext(name)[0] for name in module_files
@@ -16,11 +16,11 @@ def LoadPlayers():
       logging.error('Failure importing player module.', exc_info=True)
       continue
     modules.append(player_module)
-  return _InstantiatePlayers(modules)
+  return _InstantiatePlayers(modules, min_players, max_players)
 
 
-def _InstantiatePlayers(modules):
-  n = min(5, max(3, len(modules)))
+def _InstantiatePlayers(modules, min_players, max_players):
+  n = min(max_players, max(min_players, len(modules)))
   ok_modules = list(modules)
   random.shuffle(ok_modules)
   i = 0
