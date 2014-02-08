@@ -2,8 +2,8 @@ message Artist {
   enum Id {
     LITE_METAL = 1;
     YOKO = 2;
-    KARL_GITTER = 3;
-    CHRISTIN_P = 4;
+    CHRISTIN_P = 3;
+    KARL_GITTER = 4;
     KRYPTO = 5;
   }
 }

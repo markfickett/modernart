@@ -25,11 +25,15 @@ def _InstantiatePlayers(modules, min_players, max_players):
   random.shuffle(ok_modules)
   i = 0
   player_objs = []
+  used_names = set()
   while n > 0:
     if not ok_modules:
       raise RuntimeError('Not enough players instantiable.')
     try:
       player = ok_modules[i].Player()
+      if player.name in used_names:
+        raise RuntimeError('Name %r already used.', player.name)
+      used_names.add(player.name)
       i = (i + 1) % len(ok_modules)
       n -= 1
       player_objs.append(player)
