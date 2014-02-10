@@ -39,14 +39,35 @@ message PlayerHoldings {
   repeated Card purchases = 4;
 }
 
-// Overall state of the game: common features for current action (the cards
-// on auction, the deck) and past action (placings/values for each artist for
+// The state for an auction (in progress or completed).
+message Auction {
+  // The one or two cards on auction.
+  repeated Card cards = 1;
+
+  // The name of the Player selling. (For an open double, of the two Players
+  // jointly selling; the Player who played the open is first.)
+  repeated string seller_names = 2;
+
+  // True if putting up a card ended the round (and the auction should not
+  // actually be performed).
+  optional bool ends_round = 3;
+
+  // Current high bid. If the winner is known, this is the winning bid.
+  optional uint32 winning_bid = 4;
+
+  // The name of the Player who won the auction. If omitted, the auction is
+  // not yet complete.
+  optional string winner_name = 5;
+}
+
+// Overall state of the game: common features for current action (the current
+// auction, the deck) and past action (placings/values for each artist for
 // previous rounds); and the official record of what each Player has (cards,
 // money, etc).
 message Board {
   repeated Card deck = 1;
 
-  repeated Card cards_on_auction = 2;
+  optional Auction auction = 2;
 
   message ArtistOutcome {
     required Artist.Id artist = 1;
