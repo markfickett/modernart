@@ -22,4 +22,4 @@ def Cards(cards):
   for card in cards:
     descriptions.append(
         '%s %s' % (AuctionName(card.auction_type), ArtistName(card.artist)))
-  return ', '.join(descriptions)
+  return ', '.join(descriptions) if descriptions else 'no Cards'

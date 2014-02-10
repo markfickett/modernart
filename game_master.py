@@ -75,13 +75,14 @@ class GameMaster(object):
     self._board.ClearField('auction')
 
     # Get a card from the next seller and validate it.
-    seller = self._players[self._next_seller_index]
-    self._next_seller_index = (self._next_seller_index + 1) % len(self._players)
-    cards = seller.GetCardsForAuction(self._board.auction)
-    logging.info(
-        '%s puts %s up for auction.', seller.name, printing.Cards(cards))
-    if not cards:
-      raise _FoulPlayException(seller, 'provided no cards for auction')
+    cards = []
+    while not cards:
+      seller = self._players[self._next_seller_index]
+      self._next_seller_index = (
+          self._next_seller_index + 1) % len(self._players)
+      cards = seller.GetCardsForAuction(self._board.auction)
+      logging.info(
+          '%s puts %s up for auction.', seller.name, printing.Cards(cards))
     if len(cards) > 2:
       raise _FoulPlayException(seller, 'provided > 2 cards for auction')
     seller_holdings = self._GetHoldings(seller)
@@ -114,6 +115,14 @@ class GameMaster(object):
         self._board.auction.ends_round = True
         logging.info(
             'Round ends with %d from %s.', count, printing.ArtistName(artist))
+        return
+
+    cards_left = False
+    for holdings in self._board.player_holdings:
+      cards_left |= len(holdings.hand) > 0
+    if not cards_left:
+      self._board.auction.ends_round = True
+      logging.info('Round ends because everyone is out of cards.')
 
   def _GetHoldings(self, player):
     for holding in self._board.player_holdings:
