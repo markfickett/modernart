@@ -9,11 +9,12 @@ More Players may be added by placing a module (either as source or bytecode) in 
 When a game is started, Players are loaded/instantiated. If necessary to fill out a game, more than one instance of the Player from any module may be used; if too many modules are present, a random subset is used.
 """
 
-import base
 import importlib
 import logging
 import os
 import random
+
+import base
 
 
 def LoadPlayers(min_players, max_players):

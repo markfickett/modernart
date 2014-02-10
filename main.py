@@ -1,7 +1,9 @@
-import game_master
 import logging
+
+import game_master
 import modernart_pb2
 import players
+
 
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(filename)s:%(lineno)s: %(message)s',
