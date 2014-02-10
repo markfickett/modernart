@@ -15,8 +15,10 @@ _ARTIST_VALUES = [30, 20, 10]
 
 
 class GameMaster(object):
+  """Track game state and control game flow according to the rules."""
 
   def __init__(self, player_objs):
+    """Sets up: picks which player will go first."""
     youngest_index = player_objs.index(
         min(player_objs, key=lambda p: p.size))
     self._players = player_objs[youngest_index:] + player_objs[:youngest_index]
@@ -29,6 +31,7 @@ class GameMaster(object):
 
 
   def Play(self):
+    """Runs a game, returning the winning player."""
     self._board = modernart_pb2.Board(
         deck=_MakeDeck())
     for player in self._players:
@@ -43,6 +46,7 @@ class GameMaster(object):
 
 
   def _PlayRound(self, round_index):
+    """Runs one round of the game: deals cards, runs auctions, pays."""
     logging.info('Starting round number %d.', round_index + 1)
     new_card_count = _GetNewCardCount(round_index, len(self._players))
     for holding in self._board.player_holdings:
@@ -69,6 +73,7 @@ class GameMaster(object):
 
 
   def _RecordPlacings(self, per_artist_counts):
+    """Records which artists' paintings placed (in order) this round."""
     rankings = sorted(n, artist for artist, n in per_artist_counts.iteritems())
     outcome = self._board.round_outcomes.add()
     for (_, artist), value in zip(rankings, _ARTIST_VALUES):
@@ -76,6 +81,7 @@ class GameMaster(object):
 
 
   def _AssignWinningsAndClearPurchases(self):
+    """Calculates cumulative painting values, pays players for purchases."""
     values = {}
     outcomes = self._board.round_outcomes
     for outcome in outcomes[-1]:
@@ -94,6 +100,7 @@ class GameMaster(object):
 
 
   def _PickWinner(self):
+    """Returns the player with the most money."""
     winner_info = None
     for holding in self._board.player_holdings:
       if winner_info is None or holding.money > winner_info.money:
@@ -102,6 +109,7 @@ class GameMaster(object):
 
 
 def _GetNewCardCount(round_index, num_players):
+  """Returns the number of new cards each player should get this round."""
   player_count_index = max(0, min(2, num_players - 3))
   clamped_round_index = max(0, min(3, round_index))
   return (
@@ -111,6 +119,7 @@ def _GetNewCardCount(round_index, num_players):
 
 
 def _TakeCards(source_cards, num):
+  """Removes num cards from source_cards and returns them."""
   if num > len(source_cards):
     raise ValueError('Cannot take more than all cards.')
   cards = list(source_cards)
@@ -120,6 +129,7 @@ def _TakeCards(source_cards, num):
   return taken_cards
 
 
+# Definition of how many of what cards there are in the deck.
 # acc. http://boardgamegeek.com/thread/239213/card-distribution-count
 _CARD_SPECS = {
   modernart_pb2.Artist.LITE_METAL: {
@@ -161,6 +171,7 @@ _CARD_SPECS = {
 
 
 def _MakeDeck(shuffled=True):
+  """Sets up a (shuffled) deck of new cards for the game."""
   cards = []
   for artist, counts in _CARD_SPECS.iteritems():
     artist_cards = []
@@ -179,6 +190,15 @@ def _MakeDeck(shuffled=True):
 
 
 def _CountPurchasesPerArtist(holdings):
+  """Counts how many of each artist were (cumulatively) purchased this round.
+
+  Args:
+    holdings: An iterable of PlayerHoldings, of which the purchases fields will
+        be read.
+
+  Returns:
+    A defaultdict of {Artist.Id: int} (default value 0).
+  """
   counts = collections.defaultdict(lambda: 0)
   for holding in holdings:
     for card in holding.purchases:

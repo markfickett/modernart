@@ -2,6 +2,7 @@ import logging
 
 
 class PlayerWrapper(object):
+  """Insulates the game from the (untrustworhy / 3rd party) Players."""
 
   def __init__(self, player_obj, size):
     self._wrapped = player_obj
@@ -16,6 +17,7 @@ class PlayerWrapper(object):
 
 
 class Player(object):
+  """A reference implementation (and potential base class) Player."""
   _inst_count = 0
 
   def __init__(self):

@@ -1,3 +1,7 @@
+// State and enum values used for Modern Art, both for internal storage by the
+// GameMaster, and in communication with the Players.
+
+// The names of the artists, in order from least to most common.
 message Artist {
   enum Id {
     LITE_METAL = 1;
@@ -8,6 +12,7 @@ message Artist {
   }
 }
 
+// The different types of auction which may be associated with a painting/card.
 message AuctionType {
   enum Id {
     SEALED = 1;
@@ -18,11 +23,15 @@ message AuctionType {
   }
 }
 
+// A painting/card.
 message Card {
   required Artist.Id artist = 1;
   required AuctionType.Id auction_type = 2;
 }
 
+// The state of a Player, as tracked by the GameMaster. (Players themselves are
+// not treated as trustworthy, so critical data for each Player is stored by
+// the game.)
 message PlayerHoldings {
   required string name = 1;
   required uint32 money = 2;
@@ -30,8 +39,14 @@ message PlayerHoldings {
   repeated Card purchases = 4;
 }
 
+// Overall state of the game: common features for current action (the cards
+// on auction, the deck) and past action (placings/values for each artist for
+// previous rounds); and the official record of what each Player has (cards,
+// money, etc).
 message Board {
-  repeated Card cards_on_auction = 1;
+  repeated Card deck = 1;
+
+  repeated Card cards_on_auction = 2;
 
   message ArtistOutcome {
     required Artist.Id artist = 1;
@@ -40,9 +55,7 @@ message Board {
   message RoundOutcome {
     repeated ArtistOutcome artist_outcomes = 1;
   }
-  repeated RoundOutcome round_outcomes = 2;
+  repeated RoundOutcome round_outcomes = 3;
 
-  repeated PlayerHoldings player_holdings = 3;
-
-  repeated Card deck = 4;
+  repeated PlayerHoldings player_holdings = 4;
 }

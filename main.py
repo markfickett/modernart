@@ -12,4 +12,4 @@ if __name__ == '__main__':
   player_objs = players.LoadPlayers(
       game_master.MIN_PLAYERS, game_master.MAX_PLAYERS)
   gm = game_master.GameMaster(player_objs)
-  winner = gm.Play()
+  gm.Play()
