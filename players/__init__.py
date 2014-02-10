@@ -6,6 +6,7 @@ import random
 
 
 def LoadPlayers(min_players, max_players):
+  logging.info('Gathering the players.')
   module_files = os.listdir(os.path.dirname(__file__))
   module_names = set(
       os.path.splitext(name)[0] for name in module_files
@@ -23,6 +24,7 @@ def LoadPlayers(min_players, max_players):
 
 def _InstantiatePlayers(modules, min_players, max_players):
   n = min(max_players, max(min_players, len(modules)))
+  logging.info('Instantiating %d players.', n)
   ok_modules = list(modules)
   random.shuffle(ok_modules)
   i = 0
