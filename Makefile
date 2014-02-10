@@ -13,7 +13,7 @@ run: $(PROTO_PY)
 	python main.py
 
 clean:
-	rm -rf build/* *.pyc $(PROTO_PY)
+	rm -rf build/* *.pyc players/*.pyc $(PROTO_PY)
 
 # conditional rules for building Python proto file, varies to avoid
 # dependancy on protoc when it will be unused
