@@ -23,13 +23,17 @@ def LoadPlayers(min_players, max_players):
   module_files = os.listdir(os.path.dirname(__file__))
   module_names = set(
       os.path.splitext(name)[0] for name in module_files
-      if not name.startswith('_'))
+      if not (name.startswith('_') or name.startswith('.')))
   modules = []
   for module_name in module_names:
     try:
       player_module = importlib.import_module('.' + module_name, __name__)
     except:
-      logging.error('Failure importing player module.', exc_info=True)
+      logging.error(
+          'Failure importing player module %r relative to %r.',
+          '.' + module_name,
+          __name__,
+          exc_info=True)
       continue
     modules.append(player_module)
   return _InstantiatePlayers(modules, min_players, max_players)
