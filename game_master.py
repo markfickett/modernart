@@ -176,7 +176,7 @@ class GameMaster(object):
       if card.auction_type == modernart_pb2.AuctionType.DOUBLE:
         raise _FoulPlayException(
             potential_seller, 'played a double on a double')
-      if card.artist != self._board.auction.cards[0]:
+      if card.artist != self._board.auction.cards[0].artist:
         raise _FoulPlayException(
             potential_seller,
             'played a %s on a %s (different artist)'
@@ -455,7 +455,7 @@ def _MakeDeck(shuffled=True):
         artist_cards.append(modernart_pb2.Card(
             artist=artist, auction_type=auction_type))
     logging.debug(
-        '%d cards for %s',
+        '%d cards of %s',
         len(artist_cards), printing.ArtistName(artist))
     cards.extend(artist_cards)
   logging.debug('Prepared a %d card deck.', len(cards))
