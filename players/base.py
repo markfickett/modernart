@@ -117,8 +117,25 @@ class Player(object):
       A list of zero, one or two Cards. Returning zero cards skips this Player's
       turn as seller.
     """
-    # Playing on a double is hard: skip it! Otherwise just play any card.
-    return [] if auction.cards else [self._cards_in_hand.pop()]
+    if not self._cards_in_hand:
+      return []
+    if auction.cards:  # an unclaimed double
+      return self._GetCardsForDouble(auction.cards[0].artist)
+    else:
+      cards = [self._cards_in_hand.pop()]
+      if cards[0].auction_type == modernart_pb2.AuctionType.DOUBLE:
+        cards += self._GetCardsForDouble(cards[0].artist)
+      return cards
+
+  def _GetCardsForDouble(self, artist):
+    if random.random() < .5:
+      return []
+    for i, card in enumerate(self._cards_in_hand):
+      if (card.artist == artist and
+          card.auction_type != modernart_pb2.AuctionType.DOUBLE):
+        del self._cards_in_hand[i]
+        return [card]
+    return []
 
   def GetBidForAuction(self, auction, as_seller=False):
     """Called during an auction to bid on cards.
