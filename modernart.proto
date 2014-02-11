@@ -52,11 +52,13 @@ message Auction {
   // actually be performed).
   optional bool ends_round = 3;
 
-  // Current high bid. If the winner is known, this is the winning bid.
+  // Current high bid. If the winner is known, this is the winning bid. In a
+  // fixed-price auction, this is the set price.
   optional uint32 winning_bid = 4;
 
-  // The name of the Player who won the auction. If omitted, the auction is
-  // not yet complete.
+  // The name of the Player who is currently winning the auction. May be omitted
+  // sometimes, such as when the auction has no winning bidder yet / during a
+  // sealed auction.
   optional string winner_name = 5;
 }
 
