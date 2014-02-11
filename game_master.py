@@ -28,6 +28,12 @@ class GameMaster(object):
         'Player order is: %s',
         ', '.join(p.name for p in self._players))
     self._next_seller_index = 0
+    self._AUCTION_RUNNERS = {
+      modernart_pb2.AuctionType.SEALED: self._RunAuctionSealed,
+      modernart_pb2.AuctionType.FIXED: self._RunAuctionFixed,
+      modernart_pb2.AuctionType.ONCE_AROUND: self._RunAuctionOnceAround,
+      modernart_pb2.AuctionType.OPEN: self._RunAuctionOpen,
+    }
 
   def Play(self):
     """Runs a game, returning the winning player."""
@@ -54,9 +60,13 @@ class GameMaster(object):
       self._players_by_name[holding.name].AcceptCards(new_cards)
     while True:
       self._StartAuction()
-      if self._board.auction.ends_round:
+      auction = self._board.auction
+      if auction.ends_round:
         break
-      self._RunAuction()
+      if not auction.winner_name:
+        self._AUCTION_RUNNERS[auction.cards[-1].auction_type](
+            auction,
+            self._players_by_name[auction.seller_names[-1]])
       self._CompleteAuction()
     self._RecordPlacings()
     self._AssignWinningsAndClearPurchases()
@@ -78,8 +88,7 @@ class GameMaster(object):
     cards = []
     while not cards:
       seller = self._players[self._next_seller_index]
-      self._next_seller_index = (
-          self._next_seller_index + 1) % len(self._players)
+      self._next_seller_index = self._NextPlayerIndex(self._next_seller_index)
       cards = seller.GetCardsForAuction(self._board.auction)
       logging.info(
           '%s puts %s up for auction.', seller.name, printing.Cards(cards))
@@ -104,6 +113,9 @@ class GameMaster(object):
     self._CheckAndMaybeSetAuctionEndsRound()
     if not self._board.auction.ends_round and is_double and len(cards) == 1:
       self._AddSecondSeller()
+
+  def _NextPlayerIndex(self, i):
+    return (i + 1) % len(self._players)
 
   def _CheckAndMaybeSetAuctionEndsRound(self):
     """If current purchases + cards for auction are enough, ends the round."""
@@ -136,8 +148,7 @@ class GameMaster(object):
     """In the case of an unclaimed double, finds the second seller."""
     while True:
       potential_seller = self._players[self._next_seller_index]
-      self._next_seller_index = (
-          self._next_seller_index + 1) % len(self._players)
+      self._next_seller_index = self._NextPlayerIndex(self._next_seller_index)
       if potential_seller.name == self._board.auction.seller_names[0]:
         logging.info(
             '%s gets the %s for free.',
@@ -178,13 +189,102 @@ class GameMaster(object):
       self._CheckAndMaybeSetAuctionEndsRound()
       return
 
-  def _RunAuction(self):
-    # FIXME
+  def _RunAuctionSealed(self, auction, seller):
+    max_bid = 0
     next_buyer_index = self._next_seller_index
-    buyer = self._players[next_buyer_index]
-    self._board.auction.winner_name = buyer.name
-    self._board.auction.winning_bid = 1
-    logging.info('Bogus auction! %s bids 1 and wins instantly.', buyer.name)
+    buyer = winner = None
+    while buyer != seller:
+      buyer = self._players[next_buyer_index]
+      next_buyer_index = self._NextPlayerIndex(next_buyer_index)
+      bid = buyer.GetBidForAuction(auction)
+      if bid is None:
+        logging.info('%s passes.', buyer.name)
+      else:
+        logging.info('%s bids %s.', buyer.name, bid)
+        if bid > max_bid:
+          max_bid = bid
+          winner = buyer
+    if not winner:
+      logging.info('every passed, seller wins by default.')
+      winner = seller
+    logging.info('%s wins with a bid of %d.', winner.name, max_bid)
+    self._board.auction.winner_name = winner.name
+    self._board.auction.winning_bid = max_bid
+
+  def _RunAuctionFixed(self, auction, seller):
+    fixed_price = seller.GetBidForAuction(auction, as_seller=True)
+    if fixed_price is None:
+      raise _FoulPlayException(seller, 'did not set fixed price')
+    auction.winning_bid = fixed_price
+    logging.info('%s fixes the price at %d.', seller.name, fixed_price)
+    next_buyer_index = self._next_seller_index
+    while True:
+      buyer = self._players[next_buyer_index]
+      next_buyer_index = self._NextPlayerIndex(next_buyer_index)
+      if buyer.name == seller.name:
+        logging.info('%s has to buy the painting back.', buyer.name)
+        break
+      bid = buyer.GetBidForAuction(auction)
+      if bid is None:
+        logging.info('%s passes.', buyer.name)
+      elif bid < fixed_price:
+        raise _FoulPlayException(
+            buyer,
+            'underbid the fixed price of %d with %d' % (fixed_price, bid))
+      else:
+        logging.info('%s buys it.', buyer.name)
+        break
+    auction.winner_name = buyer.name
+
+  def _RunAuctionOnceAround(self, auction, seller):
+    next_buyer_index = self._next_seller_index
+    buyer = None
+    auction.winning_bid = 0
+    while buyer != seller:
+      buyer = self._players[next_buyer_index]
+      next_buyer_index = self._NextPlayerIndex(next_buyer_index)
+      bid = buyer.GetBidForAuction(auction)
+      if bid is None:
+        logging.info('%s passes.', buyer.name)
+        continue
+      if bid <= auction.winning_bid:
+        raise _FoulPlayException(
+            buyer,
+            'tried to bid %d, not more than the previous bid of %d'
+            % (bid, auction.winning_bid))
+      logging.info('%s bids %s.', buyer.name, bid)
+      auction.winning_bid = bid
+      auction.winner_name = buyer.name
+    if not auction.winner_name:
+      logging.info('every passed, seller wins by default.')
+      auction.winner_name = seller.name
+
+  def _RunAuctionOpen(self, auction, seller):
+    auction.winner_name = seller.name
+    auction.winning_bid = 0
+    n = len(self._players)
+    next_buyer_index = random.randint(0, n-1)
+    skipped = 0
+    while skipped < n:
+      buyer = self._players[next_buyer_index]
+      bid = buyer.GetBidForAuction(auction)
+      next_buyer_index = self._NextPlayerIndex(next_buyer_index)
+      if bid is None:
+        logging.info('%s passes.' % buyer.name)
+        skipped += 1
+        continue
+      if bid <= auction.winning_bid:
+        raise _FoulPlayError(
+            buyer,
+            'bid %d which is not more than %d'
+            % (bid, auction.winning_bid))
+      logging.info('%s increases the bid to %d.' % (buyer.name, bid))
+      skipped = 0
+      auction.winning_bid = bid
+      auction.winner_name = buyer.name
+    logging.info(
+        '%s wins with a bid of %d.',
+        auction.winner_name, auction.winning_bid)
 
   def _CompleteAuction(self):
     winner = self._players_by_name[self._board.auction.winner_name]
@@ -196,8 +296,12 @@ class GameMaster(object):
     if bid > winner_holdings.money:
       raise _FoulPlayException(
           winner,
-          'bid %d and won but only has %d' % bid, winner_holdings.money)
+          'bid %d and won but only has %d' % (bid, winner_holdings.money))
     winner_holdings.money -= bid
+    winner.PayMoney(bid)
+    logging.info(
+        '%s pays %d and has %d left.',
+        winner_holdings.name, bid, winner_holdings.money)
     winner_holdings.purchases.extend(self._board.auction.cards)
     winner.AcceptCards(self._board.auction.cards, from_auction=True)
 
@@ -211,8 +315,15 @@ class GameMaster(object):
     else:
       raise RuntimeError('should be 1 or 2 sellers, but had %d', num_sellers)
     for seller_name, payout in zip(self._board.auction.seller_names, payouts):
+      if seller_name == winner.name:
+        logging.info('The bank takes %d.', payout)
+        continue
       seller = self._players_by_name[seller_name]
-      self._GetHoldings(seller).money += payout
+      seller_holdings = self._GetHoldings(seller)
+      seller_holdings.money += payout
+      logging.info(
+          '%s gets paid %d and now has %d.',
+          seller_name, payout, seller_holdings.money)
       seller.AcceptMoney(payout)
 
   def _RecordPlacings(self):
