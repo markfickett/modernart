@@ -6,7 +6,7 @@ import players
 
 
 logging.basicConfig(
-    format='%(levelname)s %(asctime)s %(filename)s:%(lineno)s: %(message)s',
+    format='\t%(message)s',
     level=logging.DEBUG)
 
 
