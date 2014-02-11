@@ -16,7 +16,20 @@ _ARTIST_VALUES = [30, 20, 10]
 
 
 class GameMaster(object):
-  """Track game state and control game flow according to the rules."""
+  """Tracks game state and controls game flow according to the rules.
+
+  The GM is also responsible communicating with the Players (telling them as
+  public events take place during the game, asking them for cards and bids), as
+  well as keeping private, authoritative records of what the players have (cards
+  and money) and making sure the Players don't cheat.
+
+  The GM logs informational messages to produce a record of the game. A subset
+  of these are also communicated to the Players.
+
+  Aside from the Player objects, most of the GM's state is stored in a
+  modernart_pb2.Board proto and its various submessages. This is to facilitate
+  sharing board state easily with Players, for their decision-making.
+  """
 
   def __init__(self, player_objs):
     """Sets up: picks which player will go first."""
@@ -137,6 +150,7 @@ class GameMaster(object):
       logging.info('Round ends because everyone is out of cards.')
 
   def _GetHoldings(self, player):
+    """Returns the record of what a Player has, as a PlayerHoldings proto."""
     for holding in self._board.player_holdings:
       if player.name == holding.name:
         return holding
@@ -287,6 +301,7 @@ class GameMaster(object):
         auction.winner_name, auction.winning_bid)
 
   def _CompleteAuction(self):
+    """Conducts the payments following an auction."""
     winner = self._players_by_name[self._board.auction.winner_name]
     winner_holdings = self._GetHoldings(winner)
     bid = self._board.auction.winning_bid
@@ -445,8 +460,8 @@ _CARD_SPECS = {
 }
 
 
-def _MakeDeck(shuffled=True):
-  """Sets up a (shuffled) deck of new cards for the game."""
+def _MakeDeck():
+  """Sets up a shuffled deck of new cards for the game."""
   cards = []
   for artist, counts in _CARD_SPECS.iteritems():
     artist_cards = []
@@ -459,8 +474,7 @@ def _MakeDeck(shuffled=True):
         len(artist_cards), printing.ArtistName(artist))
     cards.extend(artist_cards)
   logging.debug('Prepared a %d card deck.', len(cards))
-  if shuffled:
-    random.shuffle(cards)
+  random.shuffle(cards)
   return cards
 
 
@@ -482,6 +496,7 @@ def _CountPurchasesPerArtist(holdings):
 
 
 class _FoulPlayException(RuntimeError):
+  """A Player has broken the rules or done something nonsensical."""
 
   def __init__(self, player, reason):
     super(_FoulPlayException, self).__init__(
