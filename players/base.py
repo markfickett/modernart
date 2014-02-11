@@ -77,11 +77,15 @@ class Player(object):
 
   @property
   def name(self):
-    """The Player's name, which must be unique within a game."""
+    """The Player's name, which must be unique within a game.
+
+    Note that more than one instance of any Player class may participate in the
+    same game, depending on how many different Player classes are available.
+    """
     return self._name
 
   def AcceptCards(self, cards, from_auction=False):
-    """Called when a Player gets cards.
+    """Called when a Player gets cards, either dealt or from purchases.
 
     Args:
       cards: Copies of the Card objects.
@@ -128,6 +132,7 @@ class Player(object):
       return cards
 
   def _GetCardsForDouble(self, artist):
+    """Picks a card (or no card) to play on/with a double. Returns a list."""
     if random.random() < .5:
       return []
     for i, card in enumerate(self._cards_in_hand):
