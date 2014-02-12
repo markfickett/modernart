@@ -31,22 +31,32 @@ class PlayerWrapper(object):
     except:
       logging.error('Player failed to pay money.', exc_info=True)
 
-  def GetCardsForAuction(self, auction):
+  def GetCardsForAuction(self, board):
     try:
       return self._CopyCards(
-          self._wrapped.GetCardsForAuction(self._CopyAuction(auction)))
+          self._wrapped.GetCardsForAuction(self._SanitizeBoard(board)))
     except:
       logging.error('Player did not provide cards for auction.', exc_info=True)
       return []
 
-  def GetBidForAuction(self, auction, as_seller=False):
+  def GetBidForAuction(self, board, as_seller=False):
     try:
       bid = self._wrapped.GetBidForAuction(
-          self._CopyAuction(auction), as_seller=as_seller)
+          self._SanitizeBoard(board), as_seller=as_seller)
       return None if bid is None else max(0, int(bid))
     except:
       logging.error('Player did not provide bid for auction.', exc_info=True)
       return 0
+
+  def _SanitizeBoard(self, board):
+    copy = modernart_pb2.Board()
+    copy.CopyFrom(board)
+    copy.ClearField('deck')
+    for holdings in copy.player_holdings:
+      if holdings.name != self.name:
+        holdings.ClearField('hand')
+        holdings.ClearField('money')
+    return copy
 
   @staticmethod
   def _CopyCards(cards):
@@ -56,12 +66,6 @@ class PlayerWrapper(object):
       copy.CopyFrom(card)
       copies.append(card)
     return copies
-
-  @staticmethod
-  def _CopyAuction(auction):
-    copy = modernart_pb2.Auction()
-    copy.CopyFrom(auction)
-    return copy
 
 
 class Player(object):
@@ -110,17 +114,19 @@ class Player(object):
     """Called when a player pays out money to another Player or the bank."""
     self._money -= money
 
-  def GetCardsForAuction(self, auction):
+  def GetCardsForAuction(self, board):
     """Called when an auction is beginning.
 
     Args:
-      auction: The Auction object. If a previous player started with a double
-          and no other card, the double will be in auction.cards.
+      board: A sanitized view of the board, with the current/empty auction. If a
+          previous player started with a double and no other card, the double
+          will be in board.auction.cards.
 
     Returns:
       A list of zero, one or two Cards. Returning zero cards skips this Player's
       turn as seller.
     """
+    auction = board.auction
     if not self._cards_in_hand:
       return []
     if auction.cards:  # an unclaimed double
@@ -142,17 +148,19 @@ class Player(object):
         return [card]
     return []
 
-  def GetBidForAuction(self, auction, as_seller=False):
+  def GetBidForAuction(self, board, as_seller=False):
     """Called during an auction to bid on cards.
 
     Args:
-      auction: The in-progress Auction object.
+      board: A copy of the Board with only Player-visible details, including
+          the in-progress Auction.
       as_seller: If False, this Player is bidding to buy the painting. If True,
           this Player is setting the bid for a fixed-price auction.
 
     Returns:
       An integer >= 0, or None to pass.
     """
+    auction = board.auction
     if as_seller:
       # We are setting a fixed-price auction's cost. Don't set it at more than
       # we have, just in case we have to buy it back.

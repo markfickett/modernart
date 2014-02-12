@@ -102,7 +102,7 @@ class GameMaster(object):
     while not cards:
       seller = self._players[self._next_seller_index]
       self._next_seller_index = self._NextPlayerIndex(self._next_seller_index)
-      cards = seller.GetCardsForAuction(self._board.auction)
+      cards = seller.GetCardsForAuction(self._board)
       logging.info(
           '%s puts %s up for auction.', seller.name, printing.Cards(cards))
     if len(cards) > 2:
@@ -171,7 +171,7 @@ class GameMaster(object):
         self._board.auction.winner_name = potential_seller.name
         return
 
-      cards = potential_seller.GetCardsForAuction(self._board.auction)
+      cards = potential_seller.GetCardsForAuction(self._board)
       if not cards:
         logging.info(
             '%s passes on the %s.',
@@ -210,7 +210,7 @@ class GameMaster(object):
     while buyer != seller:
       buyer = self._players[next_buyer_index]
       next_buyer_index = self._NextPlayerIndex(next_buyer_index)
-      bid = buyer.GetBidForAuction(auction)
+      bid = buyer.GetBidForAuction(self._board)
       if bid is None:
         logging.info('%s passes.', buyer.name)
       else:
@@ -222,11 +222,11 @@ class GameMaster(object):
       logging.info('every passed, seller wins by default.')
       winner = seller
     logging.info('%s wins with a bid of %d.', winner.name, max_bid)
-    self._board.auction.winner_name = winner.name
-    self._board.auction.winning_bid = max_bid
+    auction.winner_name = winner.name
+    auction.winning_bid = max_bid
 
   def _RunAuctionFixed(self, auction, seller):
-    fixed_price = seller.GetBidForAuction(auction, as_seller=True)
+    fixed_price = seller.GetBidForAuction(self._board, as_seller=True)
     if fixed_price is None:
       raise _FoulPlayException(seller, 'did not set fixed price')
     auction.winning_bid = fixed_price
@@ -238,7 +238,7 @@ class GameMaster(object):
       if buyer.name == seller.name:
         logging.info('%s has to buy the painting back.', buyer.name)
         break
-      bid = buyer.GetBidForAuction(auction)
+      bid = buyer.GetBidForAuction(self._board)
       if bid is None:
         logging.info('%s passes.', buyer.name)
       elif bid < fixed_price:
@@ -257,7 +257,7 @@ class GameMaster(object):
     while buyer != seller:
       buyer = self._players[next_buyer_index]
       next_buyer_index = self._NextPlayerIndex(next_buyer_index)
-      bid = buyer.GetBidForAuction(auction)
+      bid = buyer.GetBidForAuction(self._board)
       if bid is None:
         logging.info('%s passes.', buyer.name)
         continue
@@ -281,7 +281,7 @@ class GameMaster(object):
     skipped = 0
     while skipped < n:
       buyer = self._players[next_buyer_index]
-      bid = buyer.GetBidForAuction(auction)
+      bid = buyer.GetBidForAuction(self._board)
       next_buyer_index = self._NextPlayerIndex(next_buyer_index)
       if bid is None:
         logging.info('%s passes.' % buyer.name)
