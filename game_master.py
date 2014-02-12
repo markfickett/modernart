@@ -288,7 +288,7 @@ class GameMaster(object):
         skipped += 1
         continue
       if bid <= auction.winning_bid:
-        raise _FoulPlayError(
+        raise _FoulPlayException(
             buyer,
             'bid %d which is not more than %d'
             % (bid, auction.winning_bid))
