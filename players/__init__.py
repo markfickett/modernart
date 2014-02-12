@@ -62,6 +62,7 @@ def _InstantiatePlayers(modules, min_players, max_players):
       n -= 1
       player_objs.append(player)
     except:
-      del ok_modules[i]
       logging.error('Failure instantiating player.', exc_info=True)
+      del ok_modules[i]
+      i = i % len(ok_modules)
   return player_objs
