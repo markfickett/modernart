@@ -203,24 +203,29 @@ class GameMaster(object):
       self._CheckAndMaybeSetAuctionEndsRound()
       return
 
-  def _RunAuctionSealed(self, auction, seller):
-    max_bid = 0
-    next_buyer_index = self._next_seller_index
-    buyer = winner = None
-    while buyer != seller:
-      buyer = self._players[next_buyer_index]
-      next_buyer_index = self._NextPlayerIndex(next_buyer_index)
-      bid = buyer.GetBidForAuction(self._board)
+  def _GetIndependantBidsInOrder(self):
+    # Go in order to resolve ties by play-order.
+    max_bid = None
+    winner = None
+    for player in (
+        self._players[self._next_seller_index:] +
+        self._players[:self._next_seller_index]):
+      bid = player.GetBidForAuction(self._board)
       if bid is None:
-        logging.info('%s passes.', buyer.name)
+        logging.info('Simultaneously, %s passes.', player.name)
       else:
-        logging.info('%s bids %s.', buyer.name, bid)
+        logging.info('Simultaneously, %s bids %s.', player.name, bid)
         if bid > max_bid:
           max_bid = bid
-          winner = buyer
+          winner = player
+    return winner, max_bid
+
+  def _RunAuctionSealed(self, auction, seller):
+    winner, max_bid = self._GetIndependantBidsInOrder()
     if not winner:
       logging.info('every passed, seller wins by default.')
       winner = seller
+      max_bid = 0
     logging.info('%s wins with a bid of %d.', winner.name, max_bid)
     auction.winner_name = winner.name
     auction.winning_bid = max_bid
@@ -274,28 +279,37 @@ class GameMaster(object):
       auction.winner_name = seller.name
 
   def _RunAuctionOpen(self, auction, seller):
+    """Conducts an open auction.
+
+    An open auction is simulated by having sealed auctions, taking the maximum
+    of the sealed / pseudo-simultaneous bids each time, and repeating until
+    the information given to the Players does not change (that is, until there
+    have been two successive rounds where no Player bid more).
+
+    Updates the current Auction's winner_name and winning_bid.
+
+    Args:
+      seller: For convenience, the player who put the card up for auction. (For
+          doubles with two sellers, this is the Player that contributed the
+          second card.)
+    """
     auction.winner_name = seller.name
     auction.winning_bid = 0
-    n = len(self._players)
-    next_buyer_index = random.randint(0, n-1)
-    skipped = 0
-    while skipped < n:
-      buyer = self._players[next_buyer_index]
-      bid = buyer.GetBidForAuction(self._board)
-      next_buyer_index = self._NextPlayerIndex(next_buyer_index)
+    all_passed_count = 0
+    while all_passed_count < 2:  # Wait until no information changes.
+      bidder, bid = self._GetIndependantBidsInOrder()
       if bid is None:
-        logging.info('%s passes.' % buyer.name)
-        skipped += 1
+        all_passed_count += 1
         continue
       if bid <= auction.winning_bid:
         raise _FoulPlayException(
-            buyer,
+            bidder,
             'bid %d which is not more than %d'
             % (bid, auction.winning_bid))
-      logging.info('%s increases the bid to %d.' % (buyer.name, bid))
-      skipped = 0
+      logging.info('%s increases the bid to %d.' % (bidder.name, bid))
+      all_passed_count = 0
       auction.winning_bid = bid
-      auction.winner_name = buyer.name
+      auction.winner_name = bidder.name
     logging.info(
         '%s wins with a bid of %d.',
         auction.winner_name, auction.winning_bid)
