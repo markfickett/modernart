@@ -1,7 +1,7 @@
-import collections
 import logging
 import random
 
+import analysis
 import modernart_pb2
 import printing
 
@@ -132,7 +132,8 @@ class GameMaster(object):
 
   def _CheckAndMaybeSetAuctionEndsRound(self):
     """If current purchases + cards for auction are enough, ends the round."""
-    per_artist_counts = _CountPurchasesPerArtist(self._board.player_holdings)
+    per_artist_counts = analysis.CountPurchasesPerArtist(
+        self._board.player_holdings)
     for card in self._board.auction.cards:
       per_artist_counts[card.artist] += 1
     for artist, count in per_artist_counts.iteritems():
@@ -357,7 +358,8 @@ class GameMaster(object):
 
   def _RecordPlacings(self):
     """Records which artists' paintings placed (in order) this round."""
-    per_artist_counts = _CountPurchasesPerArtist(self._board.player_holdings)
+    per_artist_counts = analysis.CountPurchasesPerArtist(
+        self._board.player_holdings)
     rankings = sorted(
         [(n, artist) for artist, n in per_artist_counts.iteritems()])
     outcome = self._board.round_outcomes.add()
@@ -367,14 +369,7 @@ class GameMaster(object):
 
   def _AssignWinningsAndClearPurchases(self):
     """Calculates cumulative painting values, pays players for purchases."""
-    values = {}
-    outcomes = self._board.round_outcomes
-    for outcome in outcomes[-1].artist_outcomes:
-      values[outcome.artist] = outcome.value
-    for round_outcome in outcomes[:-1]:
-      for outcome in round_outcome.artist_outcomes:
-        if outcome.artist in values:
-          values[outcome.artist] += outcome.value
+    values = analysis.GetFinishingArtistValues(self._board.round_outcomes)
     for artist, value in values.iteritems():
       logging.info(
           '%s is worth %d this round.', printing.ArtistName(artist), value)
@@ -490,23 +485,6 @@ def _MakeDeck():
   logging.debug('Prepared a %d card deck.', len(cards))
   random.shuffle(cards)
   return cards
-
-
-def _CountPurchasesPerArtist(holdings):
-  """Counts how many of each artist were (cumulatively) purchased this round.
-
-  Args:
-    holdings: An iterable of PlayerHoldings, of which the purchases fields will
-        be read.
-
-  Returns:
-    A defaultdict of {Artist.Id: int} (default value 0).
-  """
-  counts = collections.defaultdict(lambda: 0)
-  for holding in holdings:
-    for card in holding.purchases:
-      counts[card.artist] += 1
-  return counts
 
 
 class _FoulPlayException(RuntimeError):
