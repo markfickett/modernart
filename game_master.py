@@ -99,12 +99,16 @@ class GameMaster(object):
 
     # Get a card from the next seller and validate it.
     cards = []
-    while not cards:
+    skipped = 0
+    while not cards and skipped < len(self._players):
       seller = self._players[self._next_seller_index]
       self._next_seller_index = self._NextPlayerIndex(self._next_seller_index)
       cards = seller.GetCardsForAuction(self._board)
       logging.info(
           '%s puts %s up for auction.', seller.name, printing.Cards(cards))
+      skipped += 1
+    if not cards:
+      raise _FoulPlayException(None, 'Nobody put cards up for auction.')
     if len(cards) > 2:
       raise _FoulPlayException(seller, 'provided > 2 cards for auction')
     seller_holdings = self._GetHoldings(seller)
@@ -491,5 +495,8 @@ class _FoulPlayException(RuntimeError):
   """A Player has broken the rules or done something nonsensical."""
 
   def __init__(self, player, reason):
-    super(_FoulPlayException, self).__init__(
-        '%s %s: foul play ends the game!' % (player.name, reason))
+    if player:
+      msg = '%s %s: foul play ends the game!' % (player.name, reason)
+    else:
+      msg = reason
+    super(_FoulPlayException, self).__init__(msg)
