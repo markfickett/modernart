@@ -209,17 +209,20 @@ class GameMaster(object):
     # Go in order to resolve ties by play-order.
     max_bid = None
     winner = None
+    bid_history = []
     for player in (
         self._players[self._next_seller_index:] +
         self._players[:self._next_seller_index]):
       bid = player.GetBidForAuction(self._board)
+      bid_history.append((bid, player.name))
+      if bid is not None and bid > max_bid:
+        max_bid = bid
+        winner = player
+    for bid, player_name in bid_history:
       if bid is None:
-        logging.info('Simultaneously, %s passes.', player.name)
+        logging.info('Simultaneously, %s passes.', player_name)
       else:
-        logging.info('Simultaneously, %s bids %s.', player.name, bid)
-        if bid > max_bid:
-          max_bid = bid
-          winner = player
+        logging.info('Simultaneously, %s bids %s.', player_name, bid)
     return winner, max_bid
 
   def _RunAuctionSealed(self, auction, seller):
