@@ -20,7 +20,7 @@ class Player(object):
     hand = self._Summarize(board)
     cards = []
     try:
-      card_index = raw_input('Card # for auction [pass]? ')
+      card_index = raw_input('%s: Card # for auction [pass]? ' % self.name)
       cards.append(hand[int(card_index)])
       if cards[0].auction_type == modernart_pb2.AuctionType.DOUBLE:
         card_index = raw_input('Second card # [none]? ')
@@ -38,8 +38,8 @@ class Player(object):
     self._Summarize(board)
     try:
       bid = raw_input(
-          '%s bid [pass]: '
-          % ('Starting' if as_seller else 'Your'))
+          '%s: %s bid [pass]: '
+          % (self.name, 'Starting' if as_seller else 'Your'))
       return int(bid)
     except ValueError:
       return None

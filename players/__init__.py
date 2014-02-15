@@ -19,14 +19,17 @@ import os
 import random
 
 import base
+import interactive
 
 
 MIN_PLAYERS = 3
 MAX_PLAYERS = 5
 
 
-def LoadPlayers(num_players=None):
+def LoadPlayers(num_players=None, num_interactive=0):
   """Loads, instantiates, and returns Players to compete in a game."""
+  VerifyPlayerCounts(num_players, num_interactive)
+
   logging.info('Gathering the players.')
   module_files = os.listdir(os.path.dirname(__file__))
   module_names = set(
@@ -44,20 +47,32 @@ def LoadPlayers(num_players=None):
           exc_info=True)
       continue
     modules.append(player_module)
-  return _InstantiatePlayers(modules, num_players)
+  return _InstantiatePlayers(modules, num_players, num_interactive)
 
 
-def _InstantiatePlayers(modules, num_players):
+def _InstantiatePlayers(modules, num_players, num_interactive_orig):
   """Given modules defining Players, instantiates Players and returns them."""
   if num_players is None:
     n = max(MIN_PLAYERS, min(MAX_PLAYERS, len(modules)))
   else:
     n = num_players
   logging.info('Instantiating %d players.', n)
-  ok_modules = list(modules)
+
+  player_objs = []
+  num_interactive = num_interactive_orig
+  while num_interactive > 0:
+    num_interactive -= 1
+    try:
+      player_objs.append(base.PlayerWrapper(
+          interactive.Player(), os.stat(interactive.__file__).st_size))
+    except:
+      logging.error('Could not set up an interactive player.', exc_info=True)
+      break
+    n -= 1
+
+  ok_modules = list(m for m in modules if m is not interactive)
   random.shuffle(ok_modules)
   i = 0
-  player_objs = []
   used_names = set()
   while n > 0:
     if not ok_modules:
@@ -77,3 +92,16 @@ def _InstantiatePlayers(modules, num_players):
       del ok_modules[i]
       i = i % len(ok_modules)
   return player_objs
+
+
+def VerifyPlayerCounts(num_players, num_interactive):
+  if num_players is None:
+    if num_interactive > MAX_PLAYERS:
+      raise ValueError(
+          '%d interactive is more than max of %d players'
+          % (num_interactive, MAX_PLAYERS))
+  else:
+    if num_interactive > num_players:
+      raise ValueError(
+          'cannot have %d interactive with only %d players'
+          % (num_interactive, num_players))
