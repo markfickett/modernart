@@ -13,6 +13,8 @@ class PlayerWrapper(object):
     self.size = size
 
   def AcceptCards(self, cards, from_auction=False):
+    if not hasattr(self._wrapped, 'AcceptCards'):
+      return
     try:
       self._wrapped.AcceptCards(
           self._CopyCards(cards), from_auction=from_auction)
@@ -20,12 +22,16 @@ class PlayerWrapper(object):
       logging.error('Player failed to receive cards.', exc_info=True)
 
   def AcceptMoney(self, money):
+    if not hasattr(self._wrapped, 'AcceptMoney'):
+      return
     try:
       self._wrapped.AcceptMoney(money)
     except:
       logging.error('Player failed to receive money.', exc_info=True)
 
   def PayMoney(self, money):
+    if not hasattr(self._wrapped, 'PayMoney'):
+      return
     try:
       self._wrapped.PayMoney(money)
     except:
@@ -183,5 +189,5 @@ class Player(object):
         bid = min(self._money, auction.winning_bid + random.randint(1, 10))
         bid = None if random.random() < (.01 * bid) else bid
       return None if bid == 0 else bid
-        
+
       return min(self._money, random.randint(1, 10))
