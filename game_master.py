@@ -6,9 +6,6 @@ import modernart_pb2
 import printing
 
 
-MIN_PLAYERS = 3
-MAX_PLAYERS = 5
-
 _NUM_ROUNDS = 4
 _INITIAL_MONEY = 100
 _NUM_TO_END_ROUND = 5

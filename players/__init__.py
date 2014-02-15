@@ -4,9 +4,13 @@ The base module defines functions to load the Players, as well as a
 PlayerWrapper to insulate the game from any errors (or malicious behavior) in
 the Players, and an example naive Player.
 
-More Players may be added by placing a module (either as source or bytecode) in the players/ directory; such modules must define a Player class similar to (or subclassing) base.Player.
+More Players may be added by placing a module (either as source or bytecode) in
+the players/ directory; such modules must define a Player class similar to (or
+subclassing) base.Player.
 
-When a game is started, Players are loaded/instantiated. If necessary to fill out a game, more than one instance of the Player from any module may be used; if too many modules are present, a random subset is used.
+When a game is started, Players are loaded/instantiated. If necessary to fill
+out a game, more than one instance of the Player from any module may be used; if
+ too many modules are present, a random subset is used.
 """
 
 import importlib
@@ -17,7 +21,11 @@ import random
 import base
 
 
-def LoadPlayers(min_players, max_players):
+MIN_PLAYERS = 3
+MAX_PLAYERS = 5
+
+
+def LoadPlayers(num_players=None):
   """Loads, instantiates, and returns Players to compete in a game."""
   logging.info('Gathering the players.')
   module_files = os.listdir(os.path.dirname(__file__))
@@ -36,12 +44,15 @@ def LoadPlayers(min_players, max_players):
           exc_info=True)
       continue
     modules.append(player_module)
-  return _InstantiatePlayers(modules, min_players, max_players)
+  return _InstantiatePlayers(modules, num_players)
 
 
-def _InstantiatePlayers(modules, min_players, max_players):
+def _InstantiatePlayers(modules, num_players):
   """Given modules defining Players, instantiates Players and returns them."""
-  n = min(max_players, max(min_players, len(modules)))
+  if num_players is None:
+    n = max(MIN_PLAYERS, min(MAX_PLAYERS, len(modules)))
+  else:
+    n = num_players
   logging.info('Instantiating %d players.', n)
   ok_modules = list(modules)
   random.shuffle(ok_modules)
