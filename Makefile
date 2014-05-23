@@ -29,7 +29,7 @@ endif
 # automatic proto compiler and proto Python library installation
 
 ifndef PROTOC
-$(PROTO_TAR):
+build/$(PROTO_TAR):
 	curl https://protobuf.googlecode.com/files/protobuf-2.5.0.tar.gz \
 		-o build/$(PROTO_TAR)
 protoc: build/$(PROTO_TAR)
