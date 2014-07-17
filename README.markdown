@@ -21,48 +21,52 @@ Example output:
 	...
 	Starting round number 1.
 	Starting a new auction.
-	Naive 0 puts Fixed Lite Metal up for auction.
-	Naive 0 fixes the price at 14.
-	Naive 1 passes.
-	Naive 2 passes.
-	Naive 0 has to buy the painting back.
-	Naive 0 pays 14 for Fixed Lite Metal.
-	Naive 0 pays 14 and has 86 left.
-	The bank takes 14.
+	Naive 1 puts Once-Around Krypto up for auction.
+	Naive 0 bids 9.
+	Mark #26 bids 10.
+	Naive 1 bids 16.
+	Naive 1 pays 16 for Once-Around Krypto.
+	Naive 1 pays 16 and has 84 left.
+	The bank takes 16.
+	...
 	Starting a new auction.
-	Naive 1 puts Double Yoko, Sealed Yoko up for auction.
-	Naive 2 passes.
-	Naive 0 bids 42.
-	Naive 1 bids 33.
-	Naive 0 wins with a bid of 42.
-	Naive 0 pays 42 for Double Yoko, Sealed Yoko.
-	Naive 0 pays 42 and has 44 left.
-	Naive 1 gets paid 42 and now has 142.
+	Naive 0 puts Double Krypto up for auction.
+	Mark #26 adds a card: Open Krypto
+	Simultaneously, Naive 1 passes.
+	Simultaneously, Naive 0 bids 4.
+	Simultaneously, Mark #26 passes.
+	Naive 0 increases the bid to 4.
 	...
-	Naive 0 puts Once-Around Yoko up for auction.
-	Round ends with 5 from Yoko.
-	Christin P. is worth 20 this round.
-	Karl Gitter is worth 10 this round.
-	Krypto is worth 30 this round.
-	Naive 0 gets paid 10 for: Fixed Lite Metal, Double Yoko, Sealed Yoko, Double Lite Metal, Open Lite Metal, Double Karl Gitter
-	Naive 1 gets paid 0 for: Fixed Yoko, Once-Around Lite Metal
-	Naive 2 gets paid 90 for: Double Christin P., Fixed Christin P., Double Karl Gitter, Once-Around Karl Gitter, Sealed Krypto, Double Yoko
-	Starting round number 2.
+	Simultaneously, Naive 1 passes.
+	Simultaneously, Naive 0 passes.
+	Simultaneously, Mark #26 passes.
+	Naive 1 wins with a bid of 40.
+	Naive 1 pays 40 for Double Krypto, Open Krypto.
+	Naive 1 pays 40 and has 70 left.
+	Naive 0 gets paid 20 and now has 28.
+	Mark #26 gets paid 20 and now has 169.
 	...
-	Naive 0 finishes with 156
-	Naive 1 finishes with 231
-	Naive 2 finishes with 103
-	Naive 1 is the winner!
+	Starting a new auction.
+	Naive 1 puts Double Christin P. up for auction.
+	Naive 0 adds a card: Sealed Christin P.
+	Round ends with 5 from Christin P..
+	...
+	Mark #26 finishes with 427
+	Naive 1 finishes with 284
+	Naive 0 finishes with 97
+	Mark #26 is the winner!
 
 Adding Players
 --------------
 
 Players are drawn from any Python module which is placed in players/ and defines a class called Player. This can be a Python source file or a bytecode (pyc) file.
 
+To add your player, create players/<yourname>.py, subclass players.base.Player, and edit away! To compete, check players/<yourname>.pyc in to master. (Checking only the bytecode into master lets others play against your player without seeing its source; you can of course check the source into master if you like.)
+
 Version History and Roadmap
 ---------------------------
 
-* Next: Communication with the Player needs expansion, so the Player can make better decisions. Roughly, all the logging messages from GameMaster should be communicated to all the Players.
+* v0.2: Send events to Players, allowing more complex analysis and decisions.
 * v0.1: The simulator runs a valid game, with a very limited Player interface.
 
 Contributing
