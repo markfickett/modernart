@@ -1,3 +1,4 @@
+import collections
 import logging
 import random
 
@@ -54,6 +55,28 @@ class PlayerWrapper(object):
       logging.error('Player did not provide bid for auction.', exc_info=True)
       return 0
 
+  def HandleEvent(self, event_message):
+    """Calls the Player's appropriate handler for the given event message.
+
+    Based on the event message's name (PlayerJoin etc), looks for a specific
+    handler on the Player (HandlePlayerJoinEvent etc). Failing that, looks for
+    the default HandleEvent method. If either exists, calls it with the
+    event_message.
+
+    Args:
+      event_message: One of the event protos, passed to the Player's handler.
+    """
+    event_name = event_message.__class__.__name__
+    handler_fn = getattr(
+        self._wrapped,
+        'Handle%sEvent' % event_name,
+        getattr(self._wrapped, 'HandleEvent', None))
+    if handler_fn:
+      try:
+        handler_fn(event_message)
+      except:
+        logging.error('Player error handling %s.', event_name, exc_info=True)
+
   def _SanitizeBoard(self, board):
     copy = modernart_pb2.Board()
     copy.CopyFrom(board)
@@ -84,6 +107,7 @@ class Player(object):
     Player._inst_count += 1
     self._cards_in_hand = []
     self._money = 0
+    self._others_money = collections.defaultdict(lambda: 100)
 
   @property
   def name(self):
@@ -191,3 +215,20 @@ class Player(object):
       return None if bid == 0 else bid
 
       return min(self._money, random.randint(1, 10))
+
+  def HandlePaymentEvent(self, payment):
+    if payment.HasField('payor'):
+      self._others_money[payment.payor] -= payment.amount;
+    if payment.HasField('payee'):
+      self._others_money[payment.payee] += payment.amount;
+
+  def HandleGameEndEvent(self, game_end):
+    logging.debug(
+        '%s expects the totals are %s.', self._name, self._others_money)
+
+  def HandleEvent(self, event):
+    logging.debug(
+        '%s sees generic event: %s\n%s',
+        self._name,
+        event.__class__.__name__,
+        event)
