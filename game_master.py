@@ -38,12 +38,19 @@ class GameMaster(object):
         'Player order is: %s',
         ', '.join(p.name for p in self._players))
     self._next_seller_index = 0
+    for i, player in enumerate(self._players):
+      self._BroadcastEvent(modernart_pb2.PlayerJoin(
+          player_name=player.name, play_order=i))
     self._AUCTION_RUNNERS = {
       modernart_pb2.AuctionType.SEALED: self._RunAuctionSealed,
       modernart_pb2.AuctionType.FIXED: self._RunAuctionFixed,
       modernart_pb2.AuctionType.ONCE_AROUND: self._RunAuctionOnceAround,
       modernart_pb2.AuctionType.OPEN: self._RunAuctionOpen,
     }
+
+  def _BroadcastEvent(self, event):
+    for player in self._players:
+      player.HandleEvent(event)
 
   def Play(self):
     """Runs a game, returning the winning player."""
@@ -63,6 +70,7 @@ class GameMaster(object):
   def _PlayRound(self, round_index):
     """Runs one round of the game: deals cards, runs auctions, pays."""
     logging.info('Starting round number %d.', round_index + 1)
+    self._BroadcastEvent(modernart_pb2.RoundStart(round_number=round_index))
     new_card_count = _GetNewCardCount(round_index, len(self._players))
     for holding in self._board.player_holdings:
       new_cards = _TakeCards(self._board.deck, new_card_count)
@@ -123,6 +131,8 @@ class GameMaster(object):
     # Do the bookkeeping to accept the card from the seller.
     self._board.auction.seller_names.append(seller.name)
     _MoveCards(cards, seller_holdings.hand, self._board.auction.cards)
+    self._BroadcastEvent(modernart_pb2.AuctionStart(
+        auction=self._board.auction))
 
     self._CheckAndMaybeSetAuctionEndsRound()
     if not self._board.auction.ends_round and is_double and len(cards) == 1:
@@ -148,6 +158,8 @@ class GameMaster(object):
     for holdings in self._board.player_holdings:
       cards_left |= len(holdings.hand) > 0
     if not cards_left:
+      # End the round now (rather than when trying to start the next auction)
+      # so that a round consistently ends with a no-sale auction.
       self._board.auction.ends_round = True
       logging.info('Round ends because everyone is out of cards.')
 
@@ -202,6 +214,8 @@ class GameMaster(object):
       holdings = self._GetHoldings(potential_seller)
       _MoveCards([card], holdings.hand, self._board.auction.cards)
       self._board.auction.seller_names.append(potential_seller.name)
+      self._BroadcastEvent(modernart_pb2.AuctionStart(
+          auction=self._board.auction))
       self._CheckAndMaybeSetAuctionEndsRound()
       return
 
@@ -219,16 +233,20 @@ class GameMaster(object):
         max_bid = bid
         winner = player
     for bid, player_name in bid_history:
+      bid_event = modernart_pb2.Bid(
+          auction=self._board.auction, player_name=player_name)
       if bid is None:
         logging.info('Simultaneously, %s passes.', player_name)
       else:
         logging.info('Simultaneously, %s bids %s.', player_name, bid)
+        bid_event.bid = bid
+      self._BroadcastEvent(bid_event)
     return winner, max_bid
 
   def _RunAuctionSealed(self, auction, seller):
     winner, max_bid = self._GetIndependantBidsInOrder()
     if not winner:
-      logging.info('every passed, seller wins by default.')
+      logging.info('everyone passed, seller wins by default.')
       winner = seller
       max_bid = 0
     logging.info('%s wins with a bid of %d.', winner.name, max_bid)
@@ -241,6 +259,8 @@ class GameMaster(object):
       raise _FoulPlayException(seller, 'did not set fixed price')
     auction.winning_bid = fixed_price
     logging.info('%s fixes the price at %d.', seller.name, fixed_price)
+    self._BroadcastEvent(modernart_pb2.Bid(
+        auction=self._board.auction, player_name=seller.name, bid=fixed_price))
     next_buyer_index = self._next_seller_index
     while True:
       buyer = self._players[next_buyer_index]
@@ -249,6 +269,13 @@ class GameMaster(object):
         logging.info('%s has to buy the painting back.', buyer.name)
         break
       bid = buyer.GetBidForAuction(self._board)
+
+      bid_event = modernart_pb2.Bid(
+          auction=self._board.auction, player_name=seller.name)
+      if bid:
+        bid_event.bid = bid
+      self._BroadcastEvent(bid_event)
+
       if bid is None:
         logging.info('%s passes.', buyer.name)
       elif bid < fixed_price:
@@ -268,8 +295,11 @@ class GameMaster(object):
       buyer = self._players[next_buyer_index]
       next_buyer_index = self._NextPlayerIndex(next_buyer_index)
       bid = buyer.GetBidForAuction(self._board)
+      bid_event = modernart_pb2.Bid(
+          auction=auction, player_name=buyer.name)
       if bid is None:
         logging.info('%s passes.', buyer.name)
+        self._BroadcastEvent(bid_event)
         continue
       if bid <= auction.winning_bid:
         raise _FoulPlayException(
@@ -277,10 +307,12 @@ class GameMaster(object):
             'tried to bid %d, not more than the previous bid of %d'
             % (bid, auction.winning_bid))
       logging.info('%s bids %s.', buyer.name, bid)
+      bid_event.bid = bid
+      self._BroadcastEvent(bid_event)
       auction.winning_bid = bid
       auction.winner_name = buyer.name
     if not auction.winner_name:
-      logging.info('every passed, seller wins by default.')
+      logging.info('everyone passed, seller wins by default.')
       auction.winner_name = seller.name
 
   def _RunAuctionOpen(self, auction, seller):
@@ -321,6 +353,7 @@ class GameMaster(object):
 
   def _CompleteAuction(self):
     """Conducts the payments following an auction."""
+    self._BroadcastEvent(modernart_pb2.AuctionEnd(auction=self._board.auction))
     winner = self._players_by_name[self._board.auction.winner_name]
     winner_holdings = self._GetHoldings(winner)
     bid = self._board.auction.winning_bid
@@ -349,16 +382,20 @@ class GameMaster(object):
     else:
       raise RuntimeError('should be 1 or 2 sellers, but had %d', num_sellers)
     for seller_name, payout in zip(self._board.auction.seller_names, payouts):
+      payment = modernart_pb2.Payment(
+          amount=payout, cards=self._board.auction.cards, payor=winner.name)
       if seller_name == winner.name:
         logging.info('The bank takes %d.', payout)
-        continue
-      seller = self._players_by_name[seller_name]
-      seller_holdings = self._GetHoldings(seller)
-      seller_holdings.money += payout
-      logging.info(
-          '%s gets paid %d and now has %d.',
-          seller_name, payout, seller_holdings.money)
-      seller.AcceptMoney(payout)
+      else:
+        seller = self._players_by_name[seller_name]
+        seller_holdings = self._GetHoldings(seller)
+        seller_holdings.money += payout
+        logging.info(
+            '%s gets paid %d and now has %d.',
+            seller_name, payout, seller_holdings.money)
+        seller.AcceptMoney(payout)
+        payment.payee = seller_name
+      self._BroadcastEvent(payment)
 
   def _RecordPlacings(self):
     """Records which artists' paintings placed (in order) this round."""
@@ -370,6 +407,8 @@ class GameMaster(object):
     for (_, artist), value in zip(rankings, _ARTIST_VALUES):
       logging.info('%s garners %d.', printing.ArtistName(artist), value)
       outcome.artist_outcomes.add(artist=artist, value=value)
+    self._BroadcastEvent(modernart_pb2.RoundEnd(
+        auction=self._board.auction, round_outcome=outcome))
 
   def _AssignWinningsAndClearPurchases(self):
     """Calculates cumulative painting values, pays players for purchases."""
@@ -386,6 +425,8 @@ class GameMaster(object):
       logging.info(
           '%s gets paid %d for: %s',
           player.name, winnings, printing.Cards(holdings.purchases))
+      self._BroadcastEvent(modernart_pb2.Payment(
+          payee=holdings.name, amount=winnings, cards=holdings.purchases))
       del holdings.purchases[:]
       holdings.money += winnings
       player.AcceptMoney(winnings)
@@ -393,11 +434,17 @@ class GameMaster(object):
   def _PickWinner(self):
     """Returns the player with the most money."""
     winner_info = None
+    game_end = modernart_pb2.GameEnd()
     for holdings in self._board.player_holdings:
       logging.info('%s finishes with %d', holdings.name, holdings.money)
+      player_outcome = game_end.player_outcomes.add(
+          player_name=holdings.name, money=holdings.money)
       if winner_info is None or holdings.money > winner_info.money:
         winner_info = holdings
+        winner_outcome = player_outcome
     logging.info('%s is the winner!', winner_info.name)
+    winner_outcome.is_winner = True
+    self._BroadcastEvent(game_end)
     return self._players_by_name[winner_info.name]
 
 
