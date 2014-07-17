@@ -82,3 +82,60 @@ message Board {
 
   repeated PlayerHoldings player_holdings = 4;
 }
+
+// Game events which might inform player behavior and/or would be desirable in
+// rendering a view of game progress.
+
+message PlayerJoin {
+  required string player_name = 1;
+  required uint32 play_order = 2;  // Zero indexed.
+}
+
+message RoundStart {
+  required uint32 round_number = 1;  // Zero indexed.
+}
+
+// In the case of an open double, there will be two AuctionStarts. For a fixed
+// auction, the price is set by the first bid (from the seller).
+message AuctionStart {
+  required Auction auction = 1;
+}
+
+// For bidding, or for passing on a normal bid or on an open double.
+message Bid {
+  required Auction auction = 1;
+  required string player_name = 2;
+  optional uint32 bid = 3;  // Omitted for a pass.
+}
+
+message AuctionEnd {
+  required Auction auction = 1;
+}
+
+message RoundEnd {
+  // The Auction specifies the player and the card played which ended the round,
+  // though the auction is never run (so will have no winner or bids).
+  required Auction auction = 1;
+
+  required Board.RoundOutcome round_outcome = 2;
+}
+
+// Payment at the end of an auction or round. Multiple payment events may be
+// generated with the same cards in the case of a shared double.
+message Payment {
+  // Payor or payee is omitted if it's the bank.
+  optional string payor = 1;
+  optional string payee = 2;
+  required uint32 amount = 3;
+  repeated Card cards = 4;
+}
+
+message GameEnd {
+  message PlayerOutcome {
+    required string player_name = 1;
+    required uint32 money = 2;
+    required bool is_winner = 3;
+  }
+
+  repeated PlayerOutcome player_outcomes = 1;
+}
