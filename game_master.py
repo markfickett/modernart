@@ -401,8 +401,10 @@ class GameMaster(object):
     """Records which artists' paintings placed (in order) this round."""
     per_artist_counts = analysis.CountPurchasesPerArtist(
         self._board.player_holdings)
+    per_artist_counts[self._board.auction.cards[0].artist] += 1
     rankings = sorted(
-        [(n, artist) for artist, n in per_artist_counts.iteritems()])
+        [(n, artist) for artist, n in per_artist_counts.iteritems()],
+        reverse=True)
     outcome = self._board.round_outcomes.add()
     for (_, artist), value in zip(rankings, _ARTIST_VALUES):
       logging.info('%s garners %d.', printing.ArtistName(artist), value)
