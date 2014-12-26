@@ -407,8 +407,7 @@ class GameMaster(object):
 
     # Order with most purchases first, then break ties with rarest artist first.
     ranked = sorted(
-        [(_NUM_TO_END_ROUND - n, artist)
-         for artist, n in per_artist_counts.iteritems()])
+        [(-n, artist) for artist, n in per_artist_counts.iteritems()])
 
     current_round_outcome = self._board.round_outcomes.add()
     for (_, artist), value in zip(ranked, _ARTIST_VALUES):
