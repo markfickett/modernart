@@ -401,14 +401,21 @@ class GameMaster(object):
     """Records which artists' paintings placed (in order) this round."""
     per_artist_counts = analysis.CountPurchasesPerArtist(
         self._board.player_holdings)
-    rankings = sorted(
-        [(n, artist) for artist, n in per_artist_counts.iteritems()])
-    outcome = self._board.round_outcomes.add()
-    for (_, artist), value in zip(rankings, _ARTIST_VALUES):
+    last_auction = self._board.auction
+    if last_auction and last_auction.ends_round:
+      per_artist_counts[last_auction.cards[0].artist] += len(last_auction.cards)
+
+    # Order with most purchases first, then break ties with rarest artist first.
+    ranked = sorted(
+        [(_NUM_TO_END_ROUND - n, artist)
+         for artist, n in per_artist_counts.iteritems()])
+
+    current_round_outcome = self._board.round_outcomes.add()
+    for (_, artist), value in zip(ranked, _ARTIST_VALUES):
       logging.info('%s garners %d.', printing.ArtistName(artist), value)
-      outcome.artist_outcomes.add(artist=artist, value=value)
+      current_round_outcome.artist_outcomes.add(artist=artist, value=value)
     self._BroadcastEvent(modernart_pb2.RoundEnd(
-        auction=self._board.auction, round_outcome=outcome))
+        auction=self._board.auction, round_outcome=current_round_outcome))
 
   def _AssignWinningsAndClearPurchases(self):
     """Calculates cumulative painting values, pays players for purchases."""
