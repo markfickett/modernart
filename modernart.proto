@@ -4,11 +4,11 @@
 // The names of the artists, in order from least to most common.
 message Artist {
   enum Id {
-    KRYPTO = 1;
-    KARL_GITTER = 2;
+    LITE_METAL = 1;
+    YOKO = 2;
     CHRISTIN_P = 3;
-    YOKO = 4;
-    LITE_METAL = 5;
+    KARL_GITTER = 4;
+    KRYPTO = 5;
   }
 }
 
