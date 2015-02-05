@@ -12,6 +12,7 @@ os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION_VERSION'] = '2'
 import game_master
 import modernart_pb2
 import players
+import profiling
 
 
 logging.basicConfig(
@@ -48,7 +49,8 @@ if __name__ == '__main__':
     gm = game_master.GameMaster(player_objs)
     if args.batch > 1:
       gm.log.setLevel(logging.WARNING)
-    winner = gm.Play()
+    with profiling.Profiled('play'):
+      winner = gm.Play()
     win_counts[winner.GetWrappedModuleName()] += 1
     if args.batch > 1:
       logging.info(

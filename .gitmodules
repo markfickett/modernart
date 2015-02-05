@@ -1,0 +1,3 @@
+[submodule "profiling"]
+	path = profiling
+	url = https://github.com/markfickett/pyprofiling.git
