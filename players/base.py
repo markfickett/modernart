@@ -13,6 +13,9 @@ class PlayerWrapper(object):
     self.name = player_obj.name
     self.size = size
 
+  def GetPlayerClassName(self):
+    return self._wrapped.__module__.partition('.')[-1]
+
   def AcceptCards(self, cards, from_auction=False):
     if not hasattr(self._wrapped, 'AcceptCards'):
       return
