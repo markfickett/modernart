@@ -30,7 +30,7 @@ def LoadPlayers(num_players=None, num_interactive=0):
   """Loads, instantiates, and returns Players to compete in a game."""
   VerifyPlayerCounts(num_players, num_interactive)
 
-  logging.info('Gathering the players.')
+  logging.debug('Gathering the players.')
   module_files = os.listdir(os.path.dirname(__file__))
   module_names = set(
       os.path.splitext(name)[0] for name in module_files
@@ -56,7 +56,7 @@ def _InstantiatePlayers(modules, num_players, num_interactive_orig):
     n = max(MIN_PLAYERS, min(MAX_PLAYERS, len(modules)))
   else:
     n = num_players
-  logging.info('Instantiating %d players.', n)
+  logging.debug('Instantiating %d players.', n)
 
   player_objs = []
   num_interactive = num_interactive_orig
