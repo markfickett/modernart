@@ -42,7 +42,7 @@ if __name__ == '__main__':
     if args.batch > 1:
       gm.log.setLevel(logging.WARNING)
     winner = gm.Play()
-    win_counts[winner.GetPlayerClassName()] += 1
+    win_counts[winner.GetWrappedModuleName()] += 1
     if args.batch > 1:
       logging.info(
           '%4d: %s' % (

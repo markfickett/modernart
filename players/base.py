@@ -13,7 +13,7 @@ class PlayerWrapper(object):
     self.name = player_obj.name
     self.size = size
 
-  def GetPlayerClassName(self):
+  def GetWrappedModuleName(self):
     return self._wrapped.__module__.partition('.')[-1]
 
   def AcceptCards(self, cards, from_auction=False):
@@ -46,7 +46,11 @@ class PlayerWrapper(object):
       return self._CopyCards(
           self._wrapped.GetCardsForAuction(self._SanitizeBoard(board)))
     except:
-      logging.error('Player did not provide cards for auction.', exc_info=True)
+      logging.error(
+          'Player %s (%s) did not provide cards for auction.',
+          self.name,
+          self.GetWrappedModuleName(),
+          exc_info=True)
       return []
 
   def GetBidForAuction(self, board, as_seller=False):
