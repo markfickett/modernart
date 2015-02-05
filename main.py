@@ -1,6 +1,13 @@
 import argparse
 import collections
 import logging
+import os
+
+# Prefer the C++ bindings for proto. This speeds up game simulation (for which
+# the bottleneck is getting bids in open auctions) by about 4x. See intallation
+# notes at github.com/google/protobuf/tree/master/python/ .
+os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'cpp'
+os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION_VERSION'] = '2'
 
 import game_master
 import modernart_pb2
