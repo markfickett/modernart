@@ -4,6 +4,7 @@ import random
 import analysis
 import modernart_pb2
 import printing
+import profiling
 
 
 _NUM_ROUNDS = 4
@@ -56,8 +57,9 @@ class GameMaster(object):
 
   def Play(self):
     """Runs a game, returning the winning player."""
-    self._board = modernart_pb2.Board(
-        deck=_MakeDeck())
+    with profiling.Profiled('make deck'):
+      self._board = modernart_pb2.Board(
+          deck=_MakeDeck())
     for player in self._players:
       self._board.player_holdings.add(
           name=player.name,
@@ -65,7 +67,8 @@ class GameMaster(object):
       player.AcceptMoney(_INITIAL_MONEY)
 
     for round_index in range(_NUM_ROUNDS):
-      self._PlayRound(round_index)
+      with profiling.Profiled('play round'):
+        self._PlayRound(round_index)
 
     return self._PickWinner()
 
@@ -73,23 +76,32 @@ class GameMaster(object):
     """Runs one round of the game: deals cards, runs auctions, pays."""
     self.log.info('Starting round number %d.', round_index + 1)
     self._BroadcastEvent(modernart_pb2.RoundStart(round_number=round_index))
-    new_card_count = _GetNewCardCount(round_index, len(self._players))
-    for holding in self._board.player_holdings:
-      new_cards = _TakeCards(self._board.deck, new_card_count)
-      holding.hand.extend(new_cards)
-      self._players_by_name[holding.name].AcceptCards(new_cards)
+    with profiling.Profiled('deal new cards'):
+      new_card_count = _GetNewCardCount(round_index, len(self._players))
+      for holding in self._board.player_holdings:
+        new_cards = _TakeCards(self._board.deck, new_card_count)
+        holding.hand.extend(new_cards)
+        self._players_by_name[holding.name].AcceptCards(new_cards)
     while True:
-      self._StartAuction()
-      auction = self._board.auction
-      if auction.ends_round:
-        break
-      if not auction.winner_name:
-        self._AUCTION_RUNNERS[auction.cards[-1].auction_type](
-            auction,
-            self._players_by_name[auction.seller_names[-1]])
-      self._CompleteAuction()
-    self._RecordPlacings()
-    self._AssignWinningsAndClearPurchases()
+      with profiling.Profiled('run auction'):
+        with profiling.Profiled('start'):
+          self._StartAuction()
+        auction = self._board.auction
+        if auction.ends_round:
+          break
+        if not auction.winner_name:
+          auction_type = auction.cards[-1].auction_type
+          with profiling.Profiled(
+              'run %s' % modernart_pb2.AuctionType.Id.Name(auction_type)):
+            self._AUCTION_RUNNERS[auction_type](
+                auction,
+                self._players_by_name[auction.seller_names[-1]])
+        with profiling.Profiled('complete'):
+          self._CompleteAuction()
+    with profiling.Profiled('record placings'):
+      self._RecordPlacings()
+    with profiling.Profiled('pay and clean up'):
+      self._AssignWinningsAndClearPurchases()
 
   def _StartAuction(self):
     """Gets the next card for auction from a Player.
@@ -108,12 +120,13 @@ class GameMaster(object):
     cards = []
     skipped = 0
     while not cards and skipped < len(self._players):
-      seller = self._players[self._next_seller_index]
-      self._next_seller_index = self._NextPlayerIndex(self._next_seller_index)
-      cards = seller.GetCardsForAuction(self._board)
-      self.log.info(
-          '%s puts %s up for auction.', seller.name, printing.Cards(cards))
-      skipped += 1
+      with profiling.Profiled('get cards'):
+        seller = self._players[self._next_seller_index]
+        self._next_seller_index = self._NextPlayerIndex(self._next_seller_index)
+        cards = seller.GetCardsForAuction(self._board)
+        self.log.info(
+            '%s puts %s up for auction.', seller.name, printing.Cards(cards))
+        skipped += 1
     if not cards:
       raise _FoulPlayException(None, 'Nobody put cards up for auction.')
     if len(cards) > 2:
@@ -136,9 +149,11 @@ class GameMaster(object):
     self._BroadcastEvent(modernart_pb2.AuctionStart(
         auction=self._board.auction))
 
-    self._CheckAndMaybeSetAuctionEndsRound()
+    with profiling.Profiled('check round end'):
+      self._CheckAndMaybeSetAuctionEndsRound()
     if not self._board.auction.ends_round and is_double and len(cards) == 1:
-      self._AddSecondSeller()
+      with profiling.Profiled('play on double'):
+        self._AddSecondSeller()
 
   def _NextPlayerIndex(self, i):
     return (i + 1) % len(self._players)
@@ -229,20 +244,23 @@ class GameMaster(object):
     for player in (
         self._players[self._next_seller_index:] +
         self._players[:self._next_seller_index]):
-      bid = player.GetBidForAuction(self._board)
+      with profiling.Profiled(
+          'open bid from %s' % player.GetWrappedModuleName()):
+        bid = player.GetBidForAuction(self._board)
       bid_history.append((bid, player.name))
       if bid is not None and bid > max_bid:
         max_bid = bid
         winner = player
-    for bid, player_name in bid_history:
-      bid_event = modernart_pb2.Bid(
-          auction=self._board.auction, player_name=player_name)
-      if bid is None:
-        self.log.info('Simultaneously, %s passes.', player_name)
-      else:
-        self.log.info('Simultaneously, %s bids %s.', player_name, bid)
-        bid_event.bid = bid
-      self._BroadcastEvent(bid_event)
+    with profiling.Profiled('broadcast bids'):
+      for bid, player_name in bid_history:
+        bid_event = modernart_pb2.Bid(
+            auction=self._board.auction, player_name=player_name)
+        if bid is None:
+          self.log.info('Simultaneously, %s passes.', player_name)
+        else:
+          self.log.info('Simultaneously, %s bids %s.', player_name, bid)
+          bid_event.bid = bid
+        self._BroadcastEvent(bid_event)
     return winner, max_bid
 
   def _RunAuctionSealed(self, auction, seller):
@@ -296,7 +314,8 @@ class GameMaster(object):
     while buyer != seller:
       buyer = self._players[next_buyer_index]
       next_buyer_index = self._NextPlayerIndex(next_buyer_index)
-      bid = buyer.GetBidForAuction(self._board)
+      with profiling.Profiled('oa bid from %s' % buyer.GetWrappedModuleName()):
+        bid = buyer.GetBidForAuction(self._board)
       bid_event = modernart_pb2.Bid(
           auction=auction, player_name=buyer.name)
       if bid is None:
@@ -336,7 +355,8 @@ class GameMaster(object):
     auction.winning_bid = 0
     all_passed_count = 0
     while all_passed_count < 2:  # Wait until no information changes.
-      bidder, bid = self._GetIndependantBidsInOrder()
+      with profiling.Profiled('open bids'):
+        bidder, bid = self._GetIndependantBidsInOrder()
       if bid is None:
         all_passed_count += 1
         continue
